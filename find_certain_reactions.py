@@ -51,7 +51,7 @@ def find_reaction_difference(rxn: Reaction) -> List[ReactionDiff]:  # return typ
         mol_product = rxn.mol_products[i]
         mol_reactant = rxn.mol_reactants[j]
         ms = [mol_reactant, mol_product]
-        mcs = rdFMCS.FindMCS(ms, timeout=10)
+        mcs = rdFMCS.FindMCS(ms, maximizeBonds=False, timeout=10)
         if mcs.canceled == False:
             patt = mcs.smartsString
             commonMol = Chem.MolFromSmarts(patt)
@@ -100,6 +100,8 @@ ether_patt = Chem.MolFromSmarts(
 carbonyl_patt = Chem.MolFromSmiles("C=O")
 amine_patt = Chem.MolFromSmarts("[$([#6][NX3,NX4]);!$([#6](=O)N)]")
 nitroso_patt = Chem.MolFromSmarts("[#6]N=O")
+ozone = Chem.MolFromSmiles("[O-][O+]=O")
+addition_outcomes = {"Cl", "Br", "I", "O", "O.O"}
 
 
 def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
@@ -130,6 +132,8 @@ def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
     product_bond_types = [bond.GetBondTypeAsDouble() for bond in product_bonds]
     reactant_double_bond_count = reactant_bond_types.count(2.0)
     product_double_bond_count = product_bond_types.count(2.0)
+    reactant_triple_bond_count = reactant_bond_types.count(3.0)
+    product_triple_bond_count = product_bond_types.count(3.0)
     reactant_aromatic_attachments = [
         frozenset(
             (bond.GetBeginAtom().GetAtomicNum(), bond.GetEndAtom().GetAtomicNum())
@@ -179,6 +183,12 @@ def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
         bond
         for bond in product_bonds
         if {bond.GetBeginAtom().GetAtomicNum(), bond.GetEndAtom().GetAtomicNum()} == {6}
+    ]
+    reactant_carbon_carbon_double = [
+        bond for bond in reactant_carbon_carbon if bond.GetBondTypeAsDouble() == 2.0
+    ]
+    product_carbon_carbon_double = [
+        bond for bond in product_carbon_carbon if bond.GetBondTypeAsDouble() == 2.0
     ]
     reactant_carbon_nitrogen = [
         bond
@@ -348,11 +358,15 @@ def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
         return "C-N bond formation"
     if len(product_carbon_sulfur) > len(reactant_carbon_sulfur):
         return "C-S bond formation"
-    if product_double_bond_count == reactant_double_bond_count - 1:
+    if (product_double_bond_count == reactant_double_bond_count - 1) or (
+        product_triple_bond_count == reactant_triple_bond_count - 1
+    ):
         if rxn_diffs.product_dissim == rxn_diffs.reactant_dissim:
             return "Reduction"
         elif rxn_diffs.product_dissim == "":
             return "Deprotection"
+        elif rxn_diffs.product_dissim in addition_outcomes:
+            return "Addition"
     if (
         product_cooh_count > reactant_cooh_count
         or product_aldehyde_count > reactant_aldehyde_count
@@ -369,10 +383,37 @@ def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
             + reactant_ketone_count
         ):
             return "Oxidation"
+    if len(product_carbon_carbon_double) < len(
+        reactant_carbon_carbon_double
+    ) and mol_reactant_list.GetSubstructMatch(ozone):
+        return "Ozonolysis"
+    if (
+        len(product_carbon_carbon_double) == len(reactant_carbon_carbon_double) + 1
+        and rxn_diffs.reactant_dissim in addition_outcomes
+    ):
+        return "Elimination"
+    if (
+        rxn_diffs.reactant_dissim in addition_outcomes
+        and rxn_diffs.product_dissim in addition_outcomes
+    ):
+        return "Substitution"
 
     return "UNSPECIFIED"
 
-product_blacklist = {"Cl", "[Cl-]", "[Na]Cl", "Br", "[Br-]", "[K]", "[K+]", "I", "[I-]", "O"}
+
+product_blacklist = {
+    "Cl",
+    "[Cl-]",
+    "[Na]Cl",
+    "Br",
+    "[Br-]",
+    "[K]",
+    "[K+]",
+    "I",
+    "[I-]",
+    "O",
+}
+
 
 @click.command()
 @click.argument("src_file", type=click.Path(exists=True))
@@ -405,8 +446,20 @@ def main(src_file, tgt_file):
             # ~ click.echo(f"\t\tDissimilarity: '{diff_set.product_dissim}'")
             rxn_type = classify_reaction(reaction, diff_set)
             reaction_types.append(rxn_type)
-            rxn_with_correct_product = ">".join([rxn_string.rsplit(">", maxsplit=1)[0], diff_set.product])
-            click.echo(" ".join([rxn_with_correct_product, rxn_type, str(index + 1)]))
+            rxn_with_correct_product = ">".join(
+                [rxn_string.rsplit(">", maxsplit=1)[0], diff_set.product]
+            )
+            click.echo(
+                " ".join(
+                    [
+                        rxn_with_correct_product,
+                        rxn_type,
+                        str(index + 1),
+                        diff_set.reactant_dissim,  # DEBUG
+                        diff_set.product_dissim,  # DEBUG
+                    ]
+                )
+            )
             # ~ click.echo(f"\tReaction type: '{rxn_type}'")
         # click.echo(" ".join(rxn_line))
     click.echo()

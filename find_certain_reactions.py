@@ -416,17 +416,20 @@ product_blacklist = {
 
 
 @click.command()
-@click.argument("src_file", type=click.Path(exists=True))
-@click.argument("tgt_file", type=click.Path(exists=True))
+# @click.argument("src_file", type=click.Path(exists=True))
+# @click.argument("tgt_file", type=click.Path(exists=True))
+@click.argument("smiles_file", type=click.Path(exists=True))
 # ~ @click.option("-o", "out", type=click.Path(), required=True)
-def main(src_file, tgt_file):
+def main(smiles_file):
     """Main command that click uses to execute everything."""
 
-    with open(src_file) as f_src, open(tgt_file) as f_tgt:
-        src_lines = [line.strip() for line in f_src]
-        tgt_lines = [line.strip() for line in f_tgt]
-    tok_reactions = zip(src_lines, repeat(" > "), tgt_lines)
-    reactions: List[str] = ["".join("".join(rxn).split()) for rxn in tok_reactions]
+    # with open(src_file) as f_src, open(tgt_file) as f_tgt:
+    #     src_lines = [line.strip() for line in f_src]
+    #     tgt_lines = [line.strip() for line in f_tgt]
+    # tok_reactions = zip(src_lines, repeat(" > "), tgt_lines)
+    # reactions: List[str] = ["".join("".join(rxn).split()) for rxn in tok_reactions]
+    with open(smiles_file) as f:
+        reactions: List[str] = [line.strip() for line in f]
     reaction_types = []
     for index, rxn_string in tqdm(enumerate(reactions)):
         # rxn_line = [rxn_string]

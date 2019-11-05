@@ -303,10 +303,10 @@ def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
     # ~ if product_br_count > reactant_br_count or product_cl_count > reactant_cl_count:
     if product_ring_count > reactant_ring_count:
         if product_heterocycle_count > reactant_heterocycle_count:
-            return "Heterocycle formation"
-        return "Ring formation"
+            return "Heterocycle_formation"
+        return "Ring_formation"
     if len(product_carbon_carbon) > len(reactant_carbon_carbon):
-        return "C-C bond formation"
+        return "C-C_bond_formation"
     # if rxn_diffs.product_dissim == "Br" and rxn_diffs.reactant_dissim == "":
     #     return "Addition of Bromine"
     # if rxn_diffs.product_dissim == "Cl" and rxn_diffs.reactant_dissim == "":
@@ -314,50 +314,50 @@ def classify_reaction(rxn: Reaction, rxn_diffs: ReactionDiff):
     # ~ if product_ring_count < reactant_ring_count:
     # ~     return "Ring destruction"
     if product_urea_count > reactant_urea_count:
-        return "Urea formation"
+        return "Urea_formation"
     if product_ester_count > reactant_ester_count:
-        return "Ester formation"
+        return "Ester_formation"
     if product_amide_count > reactant_amide_count:
-        return "Amide formation"
+        return "Amide_formation"
     if product_sulfonamide_count > reactant_sulfonamide_count:
-        return "Sulfonamide formation"
+        return "Sulfonamide_formation"
     if product_ether_count > reactant_ether_count:
-        return "Ether formation"
+        return "Ether_formation"
     if product_arom_nit_count > reactant_arom_nit_count:
-        return "Electrophilic aromatic substitution"
+        return "Electrophilic_aromatic_substitution"
     if product_ester_count < reactant_ester_count:
         if (
             product_aldehyde_count > reactant_aldehyde_count
             or product_alcohol_count > reactant_alcohol_count
         ):
             return "Reduction"  # temporary
-        return "Ester hydrolysis"
+        return "Ester_hydrolysis"
     if len(product_carbon_chlorine) > len(reactant_carbon_chlorine) or len(
         product_carbon_bromine
     ) > len(reactant_carbon_bromine):
-        return "C-X bond formation"
+        return "C-X_bond_formation"
     if product_amide_count < reactant_amide_count:
-        return "Amide hydrolysis"
+        return "Amide_hydrolysis"
     if product_ether_count < reactant_ether_count:
         if (
             product_ether_count + product_alcohol_count + product_carbonyl_count
             == reactant_ether_count + reactant_alcohol_count + reactant_carbonyl_count
         ):
-            return "Ether cleavage"
+            return "Ether_cleavage"
     if c_prod_arom_arom[frozenset((6,))] - c_react_arom_arom[frozenset((6,))]:
-        return "C-C bond formation"
+        return "C-C_bond_formation"
     if c_prod_arom_attach - c_react_arom_attach:
-        return "Nucleophilic aromatic substitution"
+        return "Nucleophilic_aromatic_substitution"
     if len(product_carbon_nitrogen) > len(reactant_carbon_nitrogen):
         if product_carbamate_count > reactant_carbamate_count:
             return "Protection"
         if product_amine_count > reactant_amine_count:
-            return "Amine alkylation"
+            return "Amine_alkylation"
         if product_nitroso_count > reactant_nitroso_count:
             return "Nitrosation"
-        return "C-N bond formation"
+        return "C-N_bond_formation"
     if len(product_carbon_sulfur) > len(reactant_carbon_sulfur):
-        return "C-S bond formation"
+        return "C-S_bond_formation"
     if (product_double_bond_count == reactant_double_bond_count - 1) or (
         product_triple_bond_count == reactant_triple_bond_count - 1
     ):
@@ -421,7 +421,7 @@ product_blacklist = {
 @click.argument("smiles_file", type=click.Path(exists=True))
 # ~ @click.option("-o", "out", type=click.Path(), required=True)
 def main(smiles_file):
-    """Main command that click uses to execute everything."""
+    """Tries to find the differences between products and reactants."""
 
     # with open(src_file) as f_src, open(tgt_file) as f_tgt:
     #     src_lines = [line.strip() for line in f_src]
@@ -431,7 +431,8 @@ def main(smiles_file):
     with open(smiles_file) as f:
         reactions: List[str] = [line.strip() for line in f]
     reaction_types = []
-    for index, rxn_string in tqdm(enumerate(reactions)):
+    # for index, rxn_string in tqdm(enumerate(reactions)):
+    for rxn_string in tqdm(reactions):
         # rxn_line = [rxn_string]
         # ~ click.echo(f"Reaction {i+1}: '{rxn_string}'")
         reaction = split_into_rxn_class(rxn_string)
@@ -457,18 +458,18 @@ def main(smiles_file):
                     [
                         rxn_with_correct_product,
                         rxn_type,
-                        str(index + 1),
-                        diff_set.reactant_dissim,  # DEBUG
-                        diff_set.product_dissim,  # DEBUG
+                        # str(index + 1),
+                        # diff_set.reactant_dissim,  # DEBUG
+                        # diff_set.product_dissim,  # DEBUG
                     ]
                 )
             )
             # ~ click.echo(f"\tReaction type: '{rxn_type}'")
         # click.echo(" ".join(rxn_line))
-    click.echo()
+    click.echo(err=True)
     most_common_types = Counter(reaction_types).most_common()
     rtypes_dataset = tablib.Dataset(*most_common_types, headers=("Type", "Hits"))
-    click.echo(rtypes_dataset)
+    click.echo(rtypes_dataset, err=True)
 
 
 if __name__ == "__main__":
